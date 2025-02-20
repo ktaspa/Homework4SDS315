@@ -1,0 +1,193 @@
+---
+title: "Homework4SDS315"
+author: "Kapil Taspa"
+date: "2025-02-19"
+output: pdf_document
+---
+
+UT EID: kt27955
+
+GitHub Repo: <https://github.com/ktaspa/Homework4SDS315>
+
+# Problem 1 - Iron Bank
+
+```{r, echo=FALSE, message=FALSE}
+library(tidyverse)
+library(mosaic)
+
+nflip(n = 2021, prob = 0.024)
+flagged = do(100000) * nflip(n = 2021, prob = 0.024)
+```
+
+## Null Hypothesis
+
+The proportion of flagged trades is 2.4% at the baseline.
+
+## Test Statistic
+
+Higher [**number of flagged trades in 2021**]{.underline} means stronger evidence for the null hypothesis.
+
+## Histogram of Flagged Trades
+
+```{r, echo=FALSE}
+ggplot(flagged) + 
+  geom_histogram(aes(x= nflip), binwidth = 1,color = "black") +
+  labs(title = "Distribution of flagged trades",
+       x = "# of flagged trades",
+       y = "frequency")
+
+```
+
+## P-value
+
+```{r, echo=FALSE}
+seventy = sum(flagged$nflip>=70)
+seventy/100000
+
+```
+
+## Conclusion
+
+p-value\<0.05 therefore we reject the null hypothesis which means the flagged rate is higher than the baseline for Iron Bank.
+
+# Problem 2 - Health Inspections
+
+```{r, echo=FALSE}
+nflip(n = 50, prob = 0.03)
+healthcode_violations <- do(100000) * nflip(n = 50, prob = 0.03)
+```
+
+## Null Hypothesis
+
+The proportion of health code violations is 3% at the baseline.
+
+## Test Statistic
+
+Higher [**number of health code violations in 50 inspections**]{.underline} means stronger evidence for the null hypothesis.
+
+## Histogram of Flagged Trades
+
+```{r, echo=FALSE}
+ggplot(healthcode_violations) + 
+  geom_histogram(aes(x= nflip), binwidth = 1,color = "black") +
+  labs(title = "Distribution of health code violations",
+       x = "# of health code violations",
+       y = "frequency")
+
+```
+
+## P-value
+
+```{r, echo=FALSE}
+seventy = sum(healthcode_violations$nflip>=70)
+seventy/100000
+
+```
+
+## Conclusion
+
+p-value\<0.05 therefore we reject the null hypothesis which means the health code violation rate is higher than the baseline for Gourmet Bites.
+
+# Problem 3 - Evaluating Jury Selection for Bias
+
+```{r, echo=FALSE}
+observed_counts <- c(85, 56, 59, 27, 13)
+expected_proportions <- c(0.30, 0.25, 0.20, 0.15, 0.10)
+expected <- 240 * expected_proportions
+
+test = chisq.test(observed_counts, p = expected_proportions)
+```
+
+## Null Hypothesis
+
+The distribution of empaneled jurors is the same as the county’s population proportions.
+
+## Alternative Hypothesis
+
+The distribution of empaneled jurors is different than the county’s population proportions.
+
+## Test Statistic
+
+Chi Square Test.
+
+## P-value
+
+```{r, echo=FALSE}
+test$p.value
+```
+
+## Conclusion
+
+p-value(0.01445)\<0.05 therefore we reject the null hypothesis which means distribution of empaneled jury is significantly different from the county’s population proportions with 95% confidence. This could suggest that systematic bias exist in jury selection, however, there are many other reasons that could have caused this such as bias thats done on purpose so the process is fair. More investigation can be done by comparing multiple different jury's.
+
+# Problem 4 - LLM Watermarking
+
+## Part A
+
+```{r, echo=FALSE}
+letter_frequencies <- read.csv("letter_frequencies.csv")
+sentences <- readLines("brown_sentences.txt")
+
+letter_frequencies$Probability = letter_frequencies$Probability / sum(letter_frequencies$Probability)
+
+calculate_chi_squared = function(sentence, freq_table) {
+  freq_table$Probability = freq_table$Probability / sum(freq_table$Probability)
+  clean_sentence = gsub("[^A-Za-z]", "", sentence)
+  clean_sentence = toupper(clean_sentence)
+  
+  
+  observed_counts = table(factor(strsplit(clean_sentence, "")[[1]], levels = freq_table$Letter))
+  total_letters = sum(observed_counts)
+  expected_counts = total_letters * freq_table$Probability
+  
+  chi_squared_stat = sum((observed_counts - expected_counts)^2 / expected_counts)
+  
+  return(chi_squared_stat)
+}
+chi_sq_values = rep(0, length(sentences))
+for (i in seq_along(sentences)) {
+  chi_sq_values[i] = calculate_chi_squared(sentences[i], letter_frequencies)
+}
+
+reference_distribution = data.frame(ChiSquared = chi_sq_values)
+
+chi_sq_values = sapply(sentences, calculate_chi_squared, freq_table = letter_frequencies)
+head(data.frame(Sentence = seq_along(sentences), ChiSquared = chi_sq_values), 10)
+```
+
+## Part B
+
+```{r, echo=FALSE}
+sentences = c(
+  "She opened the book and started to read the first chapter, eagerly anticipating what might come next.",
+  "Despite the heavy rain, they decided to go for a long walk in the park, crossing the main avenue by the fountain in the center.",
+  "The museum’s new exhibit features ancient artifacts from various civilizations around the world.",
+  "He carefully examined the document, looking for any clues that might help solve the mystery.",
+  "The students gathered in the auditorium to listen to the guest speaker’s inspiring lecture.",
+  "Feeling vexed after an arduous and zany day at work, she hoped for a peaceful and quiet evening at home, cozying up after a quick dinner with some TV, or maybe a book on her upcoming visit to Auckland.",
+  "The chef demonstrated how to prepare a delicious meal using only locally sourced ingredients, focusing mainly on some excellent dinner recipes from Spain.",
+  "They watched the sunset from the hilltop, marveling at the beautiful array of colors in the sky.",
+  "The committee reviewed the proposal and provided many points of useful feedback to improve the project’s effectiveness.",
+  "Despite the challenges faced during the project, the team worked tirelessly to ensure its successful completion, resulting in a product that exceeded everyone’s expectations."
+)
+
+test_chi_sq = rep(0, length(sentences))
+for (i in 1:length(sentences)) {
+  test_chi_sq[i] = calculate_chi_squared(sentences[i], letter_frequencies)
+}
+
+test_results = data.frame(Sentence = 1:10, ChiSquared = test_chi_sq)
+
+p_values = rep(0, length(test_chi_sq))
+for (i in 1:length(test_chi_sq)) {
+  p_values[i] = mean(reference_distribution$ChiSquared >= test_chi_sq[i])
+}
+
+test_results$P_Value = p_values
+
+print(test_results)
+
+most_anomalous_sentence = which.min(test_results$P_Value)
+cat("The most anomalous sentence is sentence number:", most_anomalous_sentence,"\n")
+
+```
